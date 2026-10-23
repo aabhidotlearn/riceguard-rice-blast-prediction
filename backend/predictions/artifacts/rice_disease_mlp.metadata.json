@@ -1,0 +1,22 @@
+{
+  "dataset": "Rice Leaf Disease Image Samples (Mendeley Data, CC BY 4.0)",
+  "dataset_counts": {
+    "Bacterialblight": 1584,
+    "Blast": 1440,
+    "Brownspot": 1600,
+    "Tungro": 1308
+  },
+  "feature_extractor": "RGB mean/std + HSV histograms + color ratios; 38 float features",
+  "split": "filename-family holdout before training-only SMOTE",
+  "seed": 42,
+  "holdout_accuracy": 1.0,
+  "holdout_macro_f1": 1.0,
+  "versions": {
+    "python": "3.14.3",
+    "numpy": "2.5.4",
+    "scikit_learn": "1.9.1",
+    "imbalanced_learn": "0.14.2",
+    "joblib": "1.6.0"
+  },
+  "scope": "Four disease classes only; no healthy-leaf class; not validated on independent field photos."
+}

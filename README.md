@@ -2,7 +2,7 @@
 
 RiceGuard is an interview-ready full-stack portfolio project for rice leaf screening. It pairs a responsive React dashboard with a Django REST API, session authentication, image upload, a prediction history, and a user dashboard.
 
-> **Inference status:** the upload-to-result flow works locally, but the included no-weights mode is a transparent color heuristic for demonstrating the product flow. It is not a validated rice blast model and must not be used for crop decisions. The resume mentions an MLP project, but model weights and the training preprocessing were not part of the supplied files. Connect compatible validated weights with `RICE_BLAST_MODEL` before presenting predictions as model results.
+> **Model scope:** the bundled MLP is a reproducible portfolio model trained on the four disease classes in the attributed sample dataset. It has no healthy-leaf class and has not been validated on independent field photos. Results are candidate class matches for human review, not diagnosis or agronomic advice. If the model artifact is missing, the app falls back to a clearly labeled visual heuristic.
 
 ## Stack
 
@@ -50,16 +50,35 @@ All routes are under `/api/`.
 | POST | `/auth/logout/` | End session |
 | GET | `/auth/me/` | Current account |
 | GET, POST | `/predictions/` | List own history; multipart upload field `image` to screen |
-| GET | `/dashboard/` | Counts and five most recent scans |
+| GET | `/dashboard/` | Per-user scan counts and five most recent scans |
 | GET | `/health/` | Service status |
 
 The prediction response includes `disease`, `confidence`, `demo_mode`, `image_url`, and `created_at`. A `demo_mode: true` response explicitly identifies heuristic output.
 
-## Connecting a trained model
+## Run the sample classifier and minority-sampling workflow
 
-`backend/predictions/inference.py` is the model boundary. The current feature extractor emits RGB channel means and brown/yellow pixel fractions. To use a trained classifier, align preprocessing and feature shape with training, install its runtime (for example `joblib` and scikit-learn), set `RICE_BLAST_MODEL` to the serialized pipeline path, and validate it on a held-out dataset. Do not use the example heuristic as a diagnostic.
+The repository includes four labeled sample images and a small MLP artifact. In the app, sign in, choose **Blast**, **Blight**, **Brown spot**, or **Tungro** under “Run a labeled sample,” then run leaf screening. The app stores each sample scan in the signed-in user's history.
 
-For an image-based CNN, replace `extract_features`/`predict` with the exact resize, normalization, and tensor path used in training. Store model weights in persistent storage or package them as a deployment artifact; do not commit large or private weights by default.
+To retrain, download the [Rice Leaf Disease Image Samples dataset](https://data.mendeley.com/datasets/fwcj7stb8r/1), extract it so each class has its own folder, then run from `backend/`:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python ml/train_model.py "/path/to/Rice Leaf Disease Images"
+```
+
+The trainer extracts deterministic color and HSV-histogram features, holds out filename families before training, scales features, and applies SMOTE **only to the training split**. It reports class counts before and after SMOTE, holdout accuracy, macro F1, per-class metrics, and a confusion matrix. For a quick controlled minority-class demonstration, reduce Blast to 120 examples from a 400-per-class sample and save to a separate artifact:
+
+```bash
+python ml/train_model.py "/path/to/Rice Leaf Disease Images" --max-per-class 400 --minority-class Blast --minority-count 120 --output /tmp/riceguard-minority-demo.joblib
+```
+
+The default full-dataset run saves `predictions/artifacts/rice_disease_mlp.joblib` plus a metadata sidecar; set `RICE_BLAST_MODEL` to override the model path. Dependency versions for loading the bundled joblib artifact are pinned in `requirements.txt`; retrain after changing them.
+
+The source dataset is mildly imbalanced and contains four disease classes but no healthy class. The reported holdout is internal to that dataset and does not prove generalization to field images. [SAMPLE_RUN.md](backend/ml/SAMPLE_RUN.md) records an executed run where Blast was intentionally reduced to a minority class before train-only SMOTE. See [DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md) for license and sample-image credits. For persistence format/version details, see the [scikit-learn model persistence guide](https://scikit-learn.org/stable/model_persistence.html).
+
+For an image-based CNN, replace the feature extractor and match its training preprocessing exactly. Validate on an independent, representative field dataset before making performance claims.
 
 ## Deploy
 
